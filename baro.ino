@@ -2,15 +2,32 @@
 #include <U8g2lib.h>                                                    // библиотека OLED экрана
 #include <Wire.h>                                                       // библиотека интерфейса I2C
 #include "ESP32TimerInterrupt.h"
-#include <GyverBME280.h>                      // Подключение библиотеки
+#include <GyverBME280.h>                     
+#include "painlessMesh.h"
 
+#define   MESH_PREFIX     "kennet"
+#define   MESH_PASSWORD   "kennet123"
+#define   MESH_PORT       5555
+
+painlessMesh  mesh;
 
 GyverBME280 bme;                              // Создание обьекта bme
 
 /* Подпрограммы работы с OLED экраном */
-U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 5, /* dc=*/ 16, /* reset=*/ 17);/* SCL - 13, SDA - 11, CS - 10, DC - 9, RES - 8 */
+U8G2_SH1106_128X64_NONAME_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 5, /* dc=*/ 16, /* reset=*/ 17);
 
 #define PIN_D19             19        // Pin D19 mapped to pin GPIO9 of ESP32
+
+void receivedCallback( uint32_t from, String &msg ) {
+
+  String str1 = msg.c_str();
+  String str2 = "bar";
+
+  //if (str1.equals(str2)) {
+  //  String x = "09" + String(analogRead(A0)); 
+   // mesh.sendSingle(624409705,x);
+  //}
+}
 
 bool IRAM_ATTR TimerHandler0(void * timerNo)
 {
@@ -137,9 +154,11 @@ void timerOneRupt()
   flagReady = true;                                                     // взводим флаг готовности
 }
 
-// Однократное выполнение
 void setup()
 {
+  mesh.init( MESH_PREFIX, MESH_PASSWORD, MESH_PORT );
+  mesh.onReceive(&receivedCallback);
+
   pinMode(PIN_D19, OUTPUT);
   while (!Serial && millis() < 5000);
   delay(500);
@@ -156,15 +175,16 @@ void setup()
 
 	Serial.flush();
   Serial.begin(9600);                                                 // применялось при отладке программы
-  // Timer1.initialize();                                                  // инициализация таймера
-  // Timer1.attachInterrupt(timerOneRupt, 1000000);                        // генерация 1 секунда
+
   u8g2.begin();                                                         // инициализация экрана
-  // Следующую команду можно убрать, тк сильных изменений я не заметил
+
   u8g2.setContrast(0);                                                  // установим нужный контраст
 }
 
 void loop()
 {
+  mesh.update();
+
   static unsigned long lastTimer0 = 0;
   static bool timer0Stopped = false;
 
@@ -174,15 +194,11 @@ void loop()
 
     if (timer0Stopped)
     {
-      //Serial.print(F("oloolololo"));
-      // Serial.println(millis());
       timerOneRupt();
       ITimer0.restartTimer();
     }
     else
     {
-      // Serial.print(F("Stop ITimer0, millis() = "));
-      // Serial.println(millis());
       ITimer0.stopTimer();
     }
 
@@ -191,14 +207,10 @@ void loop()
 
   if (flagReady == true)                                                // если взведён флаг готовности
   {
-    // Получение данных с датчика атмосферного давления
-    //if (bme.readPressure())                                  // если нет ошибок, то
-    //{
     pressure =  bme.readPressure() / 133.322;;
     dtostrf(pressure, 2, 1, p_str);                                   // конвертируем значение давления в строку
     flagErrors = false;                                               // сброс флага ошибки
     
-    // else flagErrors = true;                                             // взводим флаг ошибки
 
     // Формирование графика (1 раз в 41 минуту)
     if (countReady == PERIOD)                                           // если пришло время
