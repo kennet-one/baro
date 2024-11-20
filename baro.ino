@@ -4,10 +4,7 @@
 #include "ESP32TimerInterrupt.h"
 #include <GyverBME280.h>                     
 #include "painlessMesh.h"
-
-#define   MESH_PREFIX     "kennet"
-#define   MESH_PASSWORD   "kennet123"
-#define   MESH_PORT       5555
+#include "mash_parameter.h"
 
 painlessMesh  mesh;
 
